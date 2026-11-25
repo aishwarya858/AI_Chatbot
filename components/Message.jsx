@@ -3,15 +3,8 @@
 import { memo, useState } from "react";
 import Markdown from "@/components/Markdown";
 import { CheckIcon, CopyIcon, RetryIcon } from "@/components/icons";
-import type { UIMessage } from "@/lib/storage";
 
-interface MessageProps {
-  message: UIMessage;
-  isStreaming: boolean;
-  onRetry?: () => void;
-}
-
-function Message({ message, isStreaming, onRetry }: MessageProps) {
+function Message({ message, isStreaming, onRetry }) {
   if (message.role === "user") {
     return (
       <div className="flex justify-end">
@@ -26,11 +19,7 @@ function Message({ message, isStreaming, onRetry }: MessageProps) {
 
   return (
     <div className="group">
-      {pending ? (
-        <Thinking />
-      ) : (
-        message.content && <Markdown content={message.content} />
-      )}
+      {pending ? <Thinking /> : message.content && <Markdown content={message.content} />}
 
       {message.notice && <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">{message.notice}</p>}
 
@@ -55,7 +44,7 @@ function Message({ message, isStreaming, onRetry }: MessageProps) {
   );
 }
 
-function MessageActions({ text }: { text: string }) {
+function MessageActions({ text }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     try {
@@ -69,7 +58,13 @@ function MessageActions({ text }: { text: string }) {
 
   return (
     <div className="mt-1 flex gap-1 transition md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100">
-      <button type="button" onClick={copy} className="icon-btn" aria-label="Copy response" title={copied ? "Copied" : "Copy"}>
+      <button
+        type="button"
+        onClick={copy}
+        className="icon-btn"
+        aria-label="Copy response"
+        title={copied ? "Copied" : "Copy"}
+      >
         {copied ? <CheckIcon width={16} height={16} /> : <CopyIcon width={16} height={16} />}
       </button>
     </div>
@@ -81,7 +76,11 @@ function Thinking() {
     <div className="flex h-7 items-center gap-1.5 text-sm text-zinc-500 dark:text-zinc-400" role="status">
       <span className="flex gap-1">
         {[0, 160, 320].map((d) => (
-          <span key={d} className="h-1.5 w-1.5 animate-bounce rounded-full bg-current" style={{ animationDelay: `${d}ms` }} />
+          <span
+            key={d}
+            className="h-1.5 w-1.5 animate-bounce rounded-full bg-current"
+            style={{ animationDelay: `${d}ms` }}
+          />
         ))}
       </span>
       <span className="sr-only">Nova is thinking</span>

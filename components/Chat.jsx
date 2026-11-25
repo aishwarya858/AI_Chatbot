@@ -5,13 +5,24 @@ import Composer from "@/components/Composer";
 import Message from "@/components/Message";
 import Sidebar from "@/components/Sidebar";
 import { ArrowDownIcon, NewChatIcon, SidebarIcon, SparkIcon } from "@/components/icons";
-import { createConversation, loadConversations, saveConversations, type Conversation, type UIMessage } from "@/lib/storage";
-import type { ChatMessage, StreamEvent } from "@/lib/types";
+import { createConversation, loadConversations, saveConversations } from "@/lib/storage";
 
 const SUGGESTIONS = [
-  { title: "Explain a concept", detail: "like quantum computing, simply", prompt: "Explain quantum computing in simple terms" },
-  { title: "Write some code", detail: "a Python palindrome checker", prompt: "Write a Python function to check if a string is a palindrome" },
-  { title: "Learn about history", detail: "why the Roman Empire fell", prompt: "What caused the fall of the Roman Empire?" },
+  {
+    title: "Explain a concept",
+    detail: "like quantum computing, simply",
+    prompt: "Explain quantum computing in simple terms",
+  },
+  {
+    title: "Write some code",
+    detail: "a Python palindrome checker",
+    prompt: "Write a Python function to check if a string is a palindrome",
+  },
+  {
+    title: "Learn about history",
+    detail: "why the Roman Empire fell",
+    prompt: "What caused the fall of the Roman Empire?",
+  },
   { title: "Make a plan", detail: "a 3-day beginner workout", prompt: "Give me a 3-day workout plan for beginners" },
 ];
 
@@ -20,19 +31,19 @@ const isDesktop = () => window.matchMedia("(min-width: 768px)").matches;
 
 export default function Chat() {
   // Saved chats are loaded once from the browser (this component only renders client-side).
-  const [conversations, setConversations] = useState<Conversation[]>(loadConversations);
-  const [activeId, setActiveId] = useState<string | null>(() => {
+  const [conversations, setConversations] = useState(loadConversations);
+  const [activeId, setActiveId] = useState(() => {
     const saved = loadConversations();
     return saved.length ? saved.reduce((a, b) => (a.updatedAt > b.updatedAt ? a : b)).id : null;
   });
   const [input, setInput] = useState("");
-  const [loadingId, setLoadingId] = useState<string | null>(null); // chat currently receiving a reply
+  const [loadingId, setLoadingId] = useState(null); // chat currently receiving a reply
   const [sidebarOpen, setSidebarOpen] = useState(isDesktop);
   const [atBottom, setAtBottom] = useState(true);
 
-  const abortRef = useRef<AbortController | null>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const abortRef = useRef(null);
+  const scrollRef = useRef(null);
+  const textareaRef = useRef(null);
 
   const isLoading = loadingId !== null;
   const active = conversations.find((c) => c.id === activeId) ?? null;
@@ -64,7 +75,7 @@ export default function Chat() {
   };
 
   /** Updates one chat's messages (by id, so a reply keeps streaming into the right chat). */
-  const updateConversation = useCallback((convId: string, update: (msgs: UIMessage[]) => UIMessage[]) => {
+  const updateConversation = useCallback((convId, update) => {
     setConversations((prev) =>
       prev.map((c) => (c.id === convId ? { ...c, messages: update(c.messages), updatedAt: Date.now() } : c)),
     );
@@ -72,20 +83,20 @@ export default function Chat() {
 
   /** Sends the conversation (history + new user message) and streams the reply. */
   const runCompletion = useCallback(
-    async (convId: string, history: UIMessage[]) => {
+    async (convId, history) => {
       const assistantId = newId();
       updateConversation(convId, () => [...history, { id: assistantId, role: "assistant", content: "" }]);
       setLoadingId(convId);
       setAtBottom(true);
 
-      const patchReply = (patch: (m: UIMessage) => Partial<UIMessage>) =>
+      const patchReply = (patch) =>
         updateConversation(convId, (msgs) => msgs.map((m) => (m.id === assistantId ? { ...m, ...patch(m) } : m)));
 
       const controller = new AbortController();
       abortRef.current = controller;
 
       // Conversation memory: send every prior successful turn so the model has full context.
-      const payload: ChatMessage[] = history
+      const payload = history
         .filter((m) => !m.error && m.content.trim())
         .map(({ role, content }) => ({ role, content }));
 
@@ -107,7 +118,7 @@ export default function Chat() {
         let buffer = "";
         let finished = false;
 
-        const handle = (event: StreamEvent) => {
+        const handle = (event) => {
           switch (event.type) {
             case "text":
               patchReply((m) => ({ content: m.content + event.text }));
@@ -132,10 +143,10 @@ export default function Chat() {
           const lines = buffer.split("\n");
           buffer = lines.pop() ?? "";
           for (const line of lines) {
-            if (line.trim()) handle(JSON.parse(line) as StreamEvent);
+            if (line.trim()) handle(JSON.parse(line));
           }
         }
-        if (buffer.trim()) handle(JSON.parse(buffer) as StreamEvent);
+        if (buffer.trim()) handle(JSON.parse(buffer));
 
         if (!finished) {
           patchReply(() => ({ error: "The connection closed before the response finished." }));
@@ -143,10 +154,14 @@ export default function Chat() {
       } catch (err) {
         if (controller.signal.aborted) {
           // User pressed Stop: keep whatever was generated so far.
-          patchReply((m) => (m.content ? { notice: "Stopped." } : { error: "Stopped before any response was generated." }));
+          patchReply((m) =>
+            m.content ? { notice: "Stopped." } : { error: "Stopped before any response was generated." },
+          );
         } else {
           const message = err instanceof Error ? err.message : "Network error. Please try again.";
-          patchReply(() => ({ error: message === "Failed to fetch" ? "Network error. Is the server running?" : message }));
+          patchReply(() => ({
+            error: message === "Failed to fetch" ? "Network error. Is the server running?" : message,
+          }));
         }
       } finally {
         setLoadingId(null);
@@ -157,11 +172,11 @@ export default function Chat() {
     [updateConversation],
   );
 
-  const send = (text: string) => {
+  const send = (text) => {
     const content = text.trim();
     if (!content || isLoading) return;
     setInput("");
-    const userMsg: UIMessage = { id: newId(), role: "user", content };
+    const userMsg = { id: newId(), role: "user", content };
 
     if (active) {
       void runCompletion(active.id, [...active.messages, userMsg]);
@@ -193,12 +208,12 @@ export default function Chat() {
     textareaRef.current?.focus();
   };
 
-  const openChat = (id: string) => {
+  const openChat = (id) => {
     setActiveId(id);
     closeSidebarOnMobile();
   };
 
-  const deleteChat = (id: string) => {
+  const deleteChat = (id) => {
     if (!window.confirm("Delete this chat? This can't be undone.")) return;
     if (id === loadingId) abortRef.current?.abort();
     setConversations((prev) => prev.filter((c) => c.id !== id));
@@ -223,7 +238,13 @@ export default function Chat() {
         <header className="flex h-14 shrink-0 items-center gap-1 px-3">
           {!sidebarOpen && (
             <>
-              <button type="button" onClick={() => setSidebarOpen(true)} className="icon-btn" aria-label="Open sidebar" title="Open sidebar">
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(true)}
+                className="icon-btn"
+                aria-label="Open sidebar"
+                title="Open sidebar"
+              >
                 <SidebarIcon />
               </button>
               <button type="button" onClick={newChat} className="icon-btn" aria-label="New chat" title="New chat">
@@ -285,7 +306,7 @@ export default function Chat() {
   );
 }
 
-function EmptyState({ onPick, disabled }: { onPick: (prompt: string) => void; disabled: boolean }) {
+function EmptyState({ onPick, disabled }) {
   return (
     <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col items-center justify-center px-4 py-10 sm:px-6">
       <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-900">

@@ -1,23 +1,23 @@
 "use client";
 
-import { memo, useState, type ComponentPropsWithoutRef } from "react";
+import { memo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 
-function extractText(node: unknown): string {
+function extractText(node) {
   if (typeof node === "string" || typeof node === "number") return String(node);
   if (Array.isArray(node)) return node.map(extractText).join("");
   if (node && typeof node === "object" && "props" in node) {
-    return extractText((node as { props: { children?: unknown } }).props.children);
+    return extractText(node.props.children);
   }
   return "";
 }
 
-function CodeBlock({ children, ...props }: ComponentPropsWithoutRef<"pre">) {
+function CodeBlock({ children, ...props }) {
   const [copied, setCopied] = useState(false);
   const code = extractText(children).replace(/\n$/, "");
-  const className = (children as { props?: { className?: string } })?.props?.className ?? "";
+  const className = children?.props?.className ?? "";
   const language = /language-(\w+)/.exec(className)?.[1];
 
   const copy = async () => {
@@ -49,7 +49,7 @@ function CodeBlock({ children, ...props }: ComponentPropsWithoutRef<"pre">) {
   );
 }
 
-function Markdown({ content }: { content: string }) {
+function Markdown({ content }) {
   return (
     <div className="prose prose-zinc max-w-none text-[15px] leading-7 dark:prose-invert prose-headings:font-semibold prose-headings:tracking-tight prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-p:my-3 prose-li:my-1 prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline dark:prose-a:text-blue-400 prose-pre:p-0 prose-code:before:content-none prose-code:after:content-none prose-code:rounded-md prose-code:bg-zinc-100 prose-code:px-1.5 prose-code:py-0.5 prose-code:text-[13px] prose-code:font-normal dark:prose-code:bg-zinc-800 prose-table:text-sm prose-th:bg-zinc-50 prose-th:px-3 prose-th:py-2 prose-td:px-3 prose-td:py-2 dark:prose-th:bg-zinc-900">
       <ReactMarkdown

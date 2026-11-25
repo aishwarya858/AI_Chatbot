@@ -1,12 +1,11 @@
-import { getProvider } from "@/lib/llm";
-import type { ChatMessage, StreamEvent } from "@/lib/types";
+import { geminiProvider as provider } from "@/lib/gemini";
 
 // POST route handlers run on the Node.js runtime and are never cached, which is what we need here.
 
 const MAX_MESSAGES = 100;
 const MAX_CHARS_PER_MESSAGE = 32_000;
 
-function jsonError(message: string, status: number) {
+function jsonError(message, status) {
   return Response.json({ error: message }, { status });
 }
 
@@ -15,12 +14,12 @@ function jsonError(message: string, status: number) {
  * Consecutive messages with the same role (e.g. a user message whose reply failed,
  * followed by a new user message) are merged so roles always alternate.
  */
-function normalizeMessages(raw: unknown): ChatMessage[] | string {
+function normalizeMessages(raw) {
   if (!Array.isArray(raw) || raw.length === 0) return "`messages` must be a non-empty array.";
   if (raw.length > MAX_MESSAGES) return `Conversation is too long (max ${MAX_MESSAGES} messages). Start a new chat.`;
 
-  const out: ChatMessage[] = [];
-  for (const m of raw as ChatMessage[]) {
+  const out = [];
+  for (const m of raw) {
     if (!m || (m.role !== "user" && m.role !== "assistant") || typeof m.content !== "string") {
       return "Each message needs a `role` of 'user' or 'assistant' and a string `content`.";
     }
@@ -42,15 +41,16 @@ function normalizeMessages(raw: unknown): ChatMessage[] | string {
   return out;
 }
 
-export async function POST(req: Request) {
-  const provider = getProvider();
-  if (typeof provider === "string") return jsonError(provider, 500);
+export async function POST(req) {
   const apiKey = process.env[provider.apiKeyEnv]?.trim();
   if (!apiKey || /^(your|paste)-/i.test(apiKey)) {
-    return jsonError(`Server is missing ${provider.apiKeyEnv}. Add your real key to .env.local and restart the dev server.`, 500);
+    return jsonError(
+      `Server is missing ${provider.apiKeyEnv}. Add your real key to .env.local and restart the dev server.`,
+      500,
+    );
   }
 
-  let body: { messages?: unknown };
+  let body;
   try {
     body = await req.json();
   } catch {
@@ -61,9 +61,9 @@ export async function POST(req: Request) {
   if (typeof messages === "string") return jsonError(messages, 400);
 
   const encoder = new TextEncoder();
-  const stream = new ReadableStream<Uint8Array>({
+  const stream = new ReadableStream({
     async start(controller) {
-      const send = (event: StreamEvent) => controller.enqueue(encoder.encode(JSON.stringify(event) + "\n"));
+      const send = (event) => controller.enqueue(encoder.encode(JSON.stringify(event) + "\n"));
 
       try {
         for await (const event of provider.streamChat(messages, req.signal)) {

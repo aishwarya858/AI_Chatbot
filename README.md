@@ -1,17 +1,18 @@
 # Nova: AI Chatbot
 
-A general-purpose AI chatbot built with **Next.js (App Router)**, **React**, **Tailwind CSS**, and **Google Gemini** (with optional support for Anthropic Claude).
+A general-purpose AI chatbot built with **Next.js** (React) and **Tailwind CSS**, using the **Google Gemini API**.
 
 ## Features
 
-- Answers questions on any topic, powered by Gemini (`gemini-3.6-flash` by default, falling back to other models when it is busy) or Claude
+- Answers questions on any topic using Gemini (`gemini-3.6-flash` by default, with automatic fallback to other models when it is busy)
 - Streaming responses: text appears as it is generated
 - Conversation memory: the full chat history is sent with each request
-- A system prompt that defines the assistant's behavior ([lib/system-prompt.ts](lib/system-prompt.ts))
-- Markdown rendering: GFM tables, lists, links, and syntax-highlighted code blocks with a copy button
-- Loading indicator, a Stop button, inline error messages with Retry
-- Responsive layout with light and dark mode
-- API keys stay on the server and are never sent to the browser
+- A system prompt that defines the assistant's behavior ([lib/system-prompt.js](lib/system-prompt.js))
+- Markdown rendering: tables, lists, links, and syntax-highlighted code blocks with a copy button
+- Previous chats are saved in the browser and listed in a sidebar
+- Loading indicator, a Stop button, and clear error messages with "Try again"
+- Clean, responsive layout with light and dark mode
+- The API key stays on the server and is never sent to the browser
 
 ## Getting started
 
@@ -25,16 +26,11 @@ Open http://localhost:3000.
 
 ### Environment variables
 
-| Variable            | Required | Description                                                               |
-| ------------------- | -------- | ------------------------------------------------------------------------- |
-| `GEMINI_API_KEY`    | yes*     | Google Gemini API key ([get one](https://aistudio.google.com/apikey))     |
-| `GEMINI_MODEL`      | no       | Gemini model override (default `gemini-3.6-flash`)                        |
-| `GEMINI_FALLBACK_MODELS` | no  | Comma-separated models tried in order when the main one is overloaded (default `gemini-3.5-flash,gemini-3.5-flash-lite`) |
-| `ANTHROPIC_API_KEY` | no       | Use Claude instead of Gemini                                              |
-| `ANTHROPIC_MODEL`   | no       | Claude model override (default `claude-opus-5-5`)                         |
-| `AI_PROVIDER`       | no       | Force `gemini` or `anthropic`; otherwise Gemini is used if its key is set |
-
-\* At least one provider key is required.
+| Variable                 | Required | Description                                                                 |
+| ------------------------ | -------- | --------------------------------------------------------------------------- |
+| `GEMINI_API_KEY`         | yes      | Google Gemini API key ([get one](https://aistudio.google.com/apikey))       |
+| `GEMINI_MODEL`           | no       | Main model (default `gemini-3.6-flash`)                                     |
+| `GEMINI_FALLBACK_MODELS` | no       | Models tried in order when the main one is busy (default `gemini-3.5-flash,gemini-3.5-flash-lite`) |
 
 `.env.local` is git-ignored. Put real keys only there, never in `.env.example`. Never prefix a key with `NEXT_PUBLIC_`, because that would expose it to the browser.
 
@@ -42,25 +38,29 @@ Open http://localhost:3000.
 
 ```
 app/
-  api/chat/route.ts   Server route: validates input, streams the reply as NDJSON events
-  page.tsx            Renders the chat
-  globals.css         Tailwind, typography plugin, code highlight theme
+  api/chat/route.js   Server route: validates input, streams the reply from Gemini
+  layout.jsx          Root layout and fonts
+  page.jsx            Home page
+  globals.css         Tailwind CSS, typography plugin, code highlight theme
 components/
-  Chat.tsx            Chat UI: history, streaming, loading, errors, retry
-  Markdown.tsx        Markdown renderer (react-markdown + remark-gfm + rehype-highlight)
+  Chat.jsx            Chat screen: history, streaming, loading, errors
+  Sidebar.jsx         Previous chats grouped by date
+  Message.jsx         A single user or assistant message
+  Composer.jsx        Message input with send and stop buttons
+  Markdown.jsx        Markdown renderer (react-markdown + remark-gfm + rehype-highlight)
+  ChatLoader.jsx      Renders the chat in the browser only (it uses localStorage)
+  icons.jsx           Small inline SVG icons
 lib/
-  llm/gemini.ts       Gemini provider (@google/genai)
-  llm/anthropic.ts    Claude provider (@anthropic-ai/sdk)
-  llm/index.ts        Chooses the provider from env vars
-  system-prompt.ts    The system prompt
-  types.ts            Shared message and stream-event types
+  gemini.js           Gemini API calls, model fallback, and error messages
+  storage.js          Saving and loading chats in the browser
+  system-prompt.js    The system prompt
 ```
 
 ## How it works
 
 1. The browser keeps the conversation in React state and POSTs the whole history to `/api/chat`.
-2. The route validates the messages and streams a reply from the selected provider, passing the system prompt (`systemInstruction` for Gemini, `system` for Claude).
-3. Text chunks are forwarded as newline-delimited JSON events (`text`, `notice`, `error`, `done`).
+2. The route validates the messages and streams a reply from Gemini, passing the system prompt as `systemInstruction`.
+3. Text chunks are sent back as newline-delimited JSON events (`text`, `notice`, `error`, `done`).
 4. The UI appends each chunk to the assistant message and renders it as Markdown.
 
-API failures (bad key, rate limits or quota, overload, network errors, safety blocks) are mapped to readable messages and shown inline with a Retry button.
+API failures (invalid key, rate limits or quota, overloaded models, network errors, safety blocks) are turned into readable messages and shown with a "Try again" button.

@@ -1,20 +1,9 @@
 "use client";
 
-import { forwardRef, useEffect, type FormEvent, type KeyboardEvent } from "react";
+import { forwardRef, useEffect } from "react";
 import { ArrowUpIcon, StopIcon } from "@/components/icons";
 
-interface ComposerProps {
-  value: string;
-  onChange: (value: string) => void;
-  onSubmit: () => void;
-  onStop: () => void;
-  isLoading: boolean;
-}
-
-const Composer = forwardRef<HTMLTextAreaElement, ComposerProps>(function Composer(
-  { value, onChange, onSubmit, onStop, isLoading },
-  ref,
-) {
+const Composer = forwardRef(function Composer({ value, onChange, onSubmit, onStop, isLoading }, ref) {
   // Auto-grow the textarea up to a max height.
   useEffect(() => {
     const el = typeof ref === "object" ? ref?.current : null;
@@ -23,12 +12,12 @@ const Composer = forwardRef<HTMLTextAreaElement, ComposerProps>(function Compose
     el.style.height = `${Math.min(el.scrollHeight, 208)}px`;
   }, [value, ref]);
 
-  const submit = (e: FormEvent) => {
+  const submit = (e) => {
     e.preventDefault();
     onSubmit();
   };
 
-  const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+  const onKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       onSubmit();

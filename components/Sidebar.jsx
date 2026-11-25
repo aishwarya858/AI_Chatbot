@@ -1,24 +1,12 @@
 "use client";
 
 import { NewChatIcon, SidebarIcon, TrashIcon } from "@/components/icons";
-import type { Conversation } from "@/lib/storage";
-
-interface SidebarProps {
-  open: boolean;
-  conversations: Conversation[];
-  activeId: string | null;
-  loadingId: string | null;
-  onClose: () => void;
-  onNewChat: () => void;
-  onOpenChat: (id: string) => void;
-  onDeleteChat: (id: string) => void;
-}
 
 /** Groups chats into Today / Yesterday / Previous 7 days / Older, newest first. */
-function groupByDate(conversations: Conversation[]) {
+function groupByDate(conversations) {
   const startOfToday = new Date().setHours(0, 0, 0, 0);
   const day = 86_400_000;
-  const groups: { label: string; items: Conversation[] }[] = [
+  const groups = [
     { label: "Today", items: [] },
     { label: "Yesterday", items: [] },
     { label: "Previous 7 days", items: [] },
@@ -42,7 +30,7 @@ export default function Sidebar({
   onNewChat,
   onOpenChat,
   onDeleteChat,
-}: SidebarProps) {
+}) {
   const groups = groupByDate(conversations);
 
   return (
@@ -81,7 +69,9 @@ export default function Sidebar({
 
         <nav className="flex-1 overflow-y-auto px-2 pb-4">
           {groups.length === 0 ? (
-            <p className="px-3 py-6 text-sm text-zinc-500 dark:text-zinc-400">No chats yet. Your conversations will appear here.</p>
+            <p className="px-3 py-6 text-sm text-zinc-500 dark:text-zinc-400">
+              No chats yet. Your conversations will appear here.
+            </p>
           ) : (
             groups.map((g) => (
               <div key={g.label} className="mt-4 first:mt-2">
@@ -102,7 +92,9 @@ export default function Sidebar({
                               : "text-zinc-700 hover:bg-zinc-200/50 dark:text-zinc-300 dark:hover:bg-zinc-800/60"
                           }`}
                         >
-                          {c.id === loadingId && <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-zinc-500" />}
+                          {c.id === loadingId && (
+                            <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-zinc-500" />
+                          )}
                           <span className="truncate">{c.title}</span>
                         </button>
                         <button
