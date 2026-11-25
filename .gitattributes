@@ -1,0 +1,6 @@
+# Normalize line endings in the repository (avoids LF/CRLF warnings on Windows)
+* text=auto eol=lf
+
+# Binary files
+*.ico binary
+*.png binary
